@@ -1,63 +1,52 @@
-(function(){
+(function() {
 	const _ = {
-		isUndefined(ele){
-			return Object.prototype.toString.call(ele) === '[object Undefined]';
+		isUndefined(object) {
+			return Object.prototype.toString.call(object) === '[object Undefined]';
 		},
-		isNumber(ele){
-			return Object.prototype.toString.call(ele) === '[object Number]';
+		isNumber(object) {
+			return Object.prototype.toString.call(object) === '[object Number]';
 		},
-		isString(ele){
-			return Object.prototype.toString.call(ele) === '[object String]';
+		isString(object) {
+			return Object.prototype.toString.call(object) === '[object String]';
 		},
-		isNull(ele){
-			return Object.prototype.toString.call(ele) === '[object Null]';
+		isNull(object) {
+			return Object.prototype.toString.call(object) === '[object Null]';
 		},
-		isBoolean(ele){
-			return Object.prototype.toString.call(ele) === '[object Boolean]';
+		isBoolean(object) {
+			return Object.prototype.toString.call(object) === '[object Boolean]';
 		},
-		isArray(ele){
-			return Object.prototype.toString.call(ele) === '[object Array]';
+		isArray(object) {
+			return Object.prototype.toString.call(object) === '[object Array]';
 		},
-		isObject(ele){
-			return Object.prototype.toString.call(ele) === '[object Object]';
+		isObject(object) {
+			return Object.prototype.toString.call(object) === '[object Object]';
 		},
-		each(ele,fn,context){
-			if(_.isArray(ele)){
-				ele.forEach(fn,context);
-			}else if(_.isObject(ele)){
-				let keys = Object.keys(ele),
-					len = keys.length;
-				for(let i =0; i <len; i++){
-					let key = keys[i],
-						value = ele[key];
-					context = context||ele;
-					console.log(ele,context)
-					fn.call(context,value,key,ele);
+		each(list, iteratee, context) {
+			if (_.isArray(list)) {
+				list.forEach(iteratee, context);
+			} else if (!_.isUndefined(list.length)) {
+				_.each(Array.from(list), iteratee, context);
+			} else if (_.isObject(list)) {
+				for (let key of Object.keys(list)) {
+					iteratee.call(context, list[key], key, list);
 				}
-			}else if(ele.length !== undefined){
-				let newArr = Array.from(ele);
-				_.each(newArr,fn,context);
 			}
-			return ele;
+			return list;
 		},
-		map(ele,fn,context){
-			if(_.isArray(ele)){
-				ele.map(fn,context);
-			}else if(_.isObject(ele)){
-				let keys = Object.keys(ele),
-					len = keys.length;
-				for(let i =0; i <len; i++){
-					let key = keys[i],
-						value = ele[key];
-					ele[key] = fn.apply(context||ele,[value,key,ele]);
+		map(list, iteratee, context) {
+			if (_.isArray(list)) {
+				return list.map(iteratee, context);
+			} else if (!_.isUndefined(list.length)) {
+				_.map(Array.from(list), iteratee, context);
+			} else if (_.isObject(list)) {
+				let result = [];
+				for (let key of Object.keys(list)) {
+					result.push(iteratee.call(context, list[key], key, list));
 				}
-			}else if(ele.length !== undefined){
-				let newArr = Array.from(ele);
-				ele = _.map(newArr,fn,context);
+				return result;
 			}
-			return ele;
 		},
-		reduce(ele,fn,memo,context){
+		reduce(list, iteratee, memo, context) {
 
 		}
 	};
