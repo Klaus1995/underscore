@@ -1,13 +1,28 @@
 (function() {
 
-	let _ = {};
+	//_是一个构造函数
+	let _ = function(obj) {
+
+		//如果obj已经是_的实例对象，则返回obj
+		if (obj instanceof _) {
+			return obj;
+		}
+
+		//如果非new调用构造函数，则返回一个用new调用的实例对象
+		if (!(this instanceof _)) {
+			return new _(obj);
+		}
+
+		//new调用的话会返回一个实例对象，实例的_wrapped属性绑定obj
+		this._wrapped = obj;
+	};
 
 	window._ = _;
 
 	//createCallback方法
 	//内置方法
 	//根据传入参数的类型生成相对应的方法
-	const createCallback = function(value, context) {
+	let createCallback = function(value, context) {
 
 		//如果传入undefined，则返回_.identity
 		if (_.isUndefined(value)) {
@@ -275,6 +290,67 @@
 		};
 	};
 
+	//matcher方法
+	//_.matcher(attrs)
+	//返回一个断言函数，这个函数会给你一个断言 可以用来辨别 给定的对象是否匹配attrs指定键/值属性。
+	_.matcher = function(attrs) {
+
+		return function(object) {
+
+			for (let [key, value] of Object.entries(attrs)) {
+				if (object[key] !== value || !(key in object)) {
+					return false;
+				}
+			}
+
+			return true;
+		};
+	};
+
+	//isEqual方法
+	//_.isEqual(object, other) 
+	//执行两个对象之间的优化深度比较，确定他们是否应被视为相等。
+	_.isEqual = function(a, b) {
+
+		//先简单判断是否全等，包括基本类型的值相同，或者引用类型的引用相同
+		//注意+0和-0会认为是不等的，而NaN和NaN会认为是相等的
+		if (Object.is(a, b)) {
+			return true;
+		}
+
+		// 如果 a 和 b 是 underscore 的实例对象
+		// 那么比较 _wrapped 属性值（Unwrap）
+		if (a instanceof _) a = a._wrapped;
+		if (b instanceof _) b = b._wrapped;
+
+		//比较a和b的数据类型，如果数据类型不同直接返回false
+		if (Object.prototype.toString.call(a) !== Object.prototype.toString.call(b)) {
+			return false;
+		}
+
+		//js七大数据类型：undefined，null，string，number，boolean，symbol，object
+		//前六种可以简单处理以后比较
+		//object要进行递归比较
+		if (_.isUndefined(a) || _.isNull(a)) {
+			//如果数据类型是undefined或者null，那么一定相等
+			return true;
+		} else if (_.isString(a) || _.isRegExp(a)) {
+			//如果数据类型是string或者正则表达式，那么先要转为string基本类型值再进行比较
+			//因为 'a' === new String('a') 的结果为false，但是_.isEqual认为相等
+			//转化方法用 ''+a 的黑科技
+			return '' + a === '' + b;
+		} else if (_.isNumber(a) || _.isDate(a) || _.isBoolean(a)) {
+			//如果数据类型是number，boolean或者Date对象，那么先要转为number基本类型值再进行比较
+			//因为 1 === new String(1) 或者 true === new Boolean(true)的结果为false，但是_.isEqual认为相等
+			//转化方法用 +a 的黑科技，Date对象会返回时间戳，是Date时间和 1970 年 1 月 1 日 0 点的毫秒数
+			//ES6的Object.is(a, b)方法会对+0、-0和NaN的情况进行正确处理
+			return Object.is(+a, +b);
+		} else if (_.isSymbol(a)) {
+			//如果数据类型是symbol，可以直接进行比较
+			return a === b;
+		}
+	};
+
 	//isObject方法  
 	//function和object会返回true，null会返回false
 	_.isObject = function(obj) {
@@ -288,10 +364,10 @@
 	//因为有内置的方法所以单独提出来
 	_.isArray = Array.isArray;
 
-	//isUndefined,isNull,isString,isNumber,isBoolean,isFunction,isDate,isRegExp,isArguments,isSet,isMap,isWeakeSet,isWeakMap方法
+	//isUndefined,isNull,isString,isNumber,isBoolean,isFunction,isDate,isRegExp,isArguments,isSet,isMap,isWeakeSet,isWeakMap,isSymbol方法
 	//因为方法类似，所以统一定义
 	//数据类型数组集合
-	const nativeTypes = ['Undefined', 'Null', 'String', 'Number', 'Boolean', 'Function', 'Date', 'RegExp', 'Arguments', 'Set', 'Map', 'WeakSet', 'WeakMap'];
+	const nativeTypes = ['Undefined', 'Null', 'String', 'Number', 'Boolean', 'Function', 'Date', 'RegExp', 'Arguments', 'Set', 'Map', 'WeakSet', 'WeakMap', 'Symbol'];
 	nativeTypes.forEach((type) => {
 		_['is' + type] = function(obj) {
 			return Object.prototype.toString.call(obj) === '[object ' + type + ']';
