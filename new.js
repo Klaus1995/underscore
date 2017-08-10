@@ -312,42 +312,136 @@
 	//执行两个对象之间的优化深度比较，确定他们是否应被视为相等。
 	_.isEqual = function(a, b) {
 
-		//先简单判断是否全等，包括基本类型的值相同，或者引用类型的引用相同
-		//注意+0和-0会认为是不等的，而NaN和NaN会认为是相等的
-		if (Object.is(a, b)) {
+		return eq(a, b);
+
+		function eq(a, b, aStack, bStack) {
+
+			//先简单判断是否全等，包括基本类型的值相同，或者引用类型的引用相同
+			//注意+0和-0会认为是不等的，而NaN和NaN会认为是相等的
+			if (Object.is(a, b)) {
+				return true;
+			}
+
+			// 如果 a 和 b 是 underscore 的实例对象
+			// 那么比较 _wrapped 属性值（Unwrap）
+			if (a instanceof _) a = a._wrapped;
+			if (b instanceof _) b = b._wrapped;
+
+			//比较a和b的数据类型，如果数据类型不同直接返回false
+			if (Object.prototype.toString.call(a) !== Object.prototype.toString.call(b)) {
+				return false;
+			}
+
+			//js七大数据类型：undefined，null，string，number，boolean，symbol，object
+			//前六种可以简单处理以后比较
+			//object要进行递归比较
+			if (_.isUndefined(a) || _.isNull(a)) {
+				//如果数据类型是undefined或者null，并且toString判断类型想吐，那么一定相等
+				//其实这步判断没有意义，因为前面Object.is()判断一定已经返回true了
+				//但是为了理顺判断思路还是写了
+				return true;
+			} else if (_.isString(a) || _.isRegExp(a)) {
+				//如果数据类型是string或者正则表达式，那么先要转为string基本类型值再进行比较
+				//因为 'a' === new String('a') 的结果为false，但是_.isEqual认为相等
+				//转化方法用 ''+a 的黑科技
+				return '' + a === '' + b;
+			} else if (_.isNumber(a) || _.isDate(a) || _.isBoolean(a)) {
+				//如果数据类型是number，boolean或者Date对象，那么先要转为number基本类型值再进行比较
+				//因为 1 === new String(1) 或者 true === new Boolean(true)的结果为false，但是_.isEqual认为相等
+				//转化方法用 +a 的黑科技，Date对象会返回时间戳，是Date时间和 1970 年 1 月 1 日 0 点的毫秒数
+				//ES6的Object.is(a, b)方法会对+0、-0和NaN的情况进行正确处理
+				return Object.is(+a, +b);
+			} else if (_.isSymbol(a)) {
+				//如果数据类型是symbol，可以直接进行比较
+				//但是如果相等的话前面Object.is()应该已经返回true
+				//所以此处一定不相等
+				return false;
+			} else if (_.isSet(a) || _.isMap(a)) {
+				//如果数据类型是set或者map，需要把它转化成数组进一步比较
+				a = [...a];
+				b = [...b];
+			} else if (_.isWeakSet(a) || _.isWeakMap(a)) {
+				//如果数据类型是weakset或者weakmap，只能判断变量指针是否相同
+				//但是如果相等的话前面Object.is()应该已经返回true
+				//所以此处一定不相等
+				return false;
+			} else if (_.isFunction(a)) {
+				//如果数据类型是function，也只能判断变量指针是否相同
+				//因为把 function a(){} 和 function b(){} 认为是equal是没有意义的
+				//但是如果相等的话前面Object.is()应该已经返回true
+				//所以此处一定不相等
+				return false;
+			}
+
+			//如果执行到这一步还没有返回值，那么剩下的类型只有array和狭义上的object
+			//狭义上的object指的是{key1:value1,key2:value2}这类
+			//这时候就需要递归展开判断，需要避免一种无限循环的情况
+			//例如 :
+			//let a = {};
+			//a.key = a;
+			//或者
+			//let a = [];
+			//a[0] = a;
+			//为了避免，需要创建一个栈
+			aStack = aStack || [];
+			bStack = bStack || [];
+
+			//当判断的对象是狭义object或者array时遍历这个栈，判断栈内是否已经存在该对象的引用
+			//据此避免无限循环递归
+			for (let i = 0; i < aStack.length; i++) {
+				if (aStack[i] === a) {
+					return bStack[i] === b;
+				}
+			}
+
+			//如果不存在则将该对象推入栈
+			aStack.push(a);
+			bStack.push(b);
+
+			//然后进行递归展开判断
+			if (_.isArray(a)) {
+				//如果是数组，则先判断数组长度
+				//因为如果长度不等那两个数组一定不equal
+				if (a.length !== b.length) {
+					return false;
+				}
+
+				//长度相等则把数组展开递归判断每一个元素
+				for (let i = 0; i < a.length; i++) {
+					if (!eq(a[i], b[i], aStack, bStack)) {
+						return false;
+					}
+				}
+			}
+
+			//只剩下狭义上的object
+			//首先判断对象的构造函数，如果不同则认为是unequal
+			let aCtor = a.constructor,
+				bCtor = b.constructor;
+
+			//第二个判断条件是为了不同iframe间内置的Object构造函数不同，
+			if (aCtor !== bCtor && !(_.isFunction(aCtor) && aCtor instanceof aCtor && _.isFunction(bCtor) && bCtor instanceof bCtor)) {
+				return false;
+			}
+
+			//判断狭义object的键的数量是否相等，不等则一定unequal
+			if (Object.keys(a).length !== Object.keys(b).length) {
+				return false;
+			}
+
+			//狭义object展开递归判断每一个键值对
+			for (let [key, value] of Object.entries(a)) {
+				if (!(_.has(b, key) && eq(value, b[key], aStack, bStack))) {
+					return false;
+				}
+			}
+
+			//经过重重判断后，则认为a和b是equal的
+			//退栈，并返回true
+			aStack.pop();
+			bStack.pop();
+
 			return true;
-		}
-
-		// 如果 a 和 b 是 underscore 的实例对象
-		// 那么比较 _wrapped 属性值（Unwrap）
-		if (a instanceof _) a = a._wrapped;
-		if (b instanceof _) b = b._wrapped;
-
-		//比较a和b的数据类型，如果数据类型不同直接返回false
-		if (Object.prototype.toString.call(a) !== Object.prototype.toString.call(b)) {
-			return false;
-		}
-
-		//js七大数据类型：undefined，null，string，number，boolean，symbol，object
-		//前六种可以简单处理以后比较
-		//object要进行递归比较
-		if (_.isUndefined(a) || _.isNull(a)) {
-			//如果数据类型是undefined或者null，那么一定相等
-			return true;
-		} else if (_.isString(a) || _.isRegExp(a)) {
-			//如果数据类型是string或者正则表达式，那么先要转为string基本类型值再进行比较
-			//因为 'a' === new String('a') 的结果为false，但是_.isEqual认为相等
-			//转化方法用 ''+a 的黑科技
-			return '' + a === '' + b;
-		} else if (_.isNumber(a) || _.isDate(a) || _.isBoolean(a)) {
-			//如果数据类型是number，boolean或者Date对象，那么先要转为number基本类型值再进行比较
-			//因为 1 === new String(1) 或者 true === new Boolean(true)的结果为false，但是_.isEqual认为相等
-			//转化方法用 +a 的黑科技，Date对象会返回时间戳，是Date时间和 1970 年 1 月 1 日 0 点的毫秒数
-			//ES6的Object.is(a, b)方法会对+0、-0和NaN的情况进行正确处理
-			return Object.is(+a, +b);
-		} else if (_.isSymbol(a)) {
-			//如果数据类型是symbol，可以直接进行比较
-			return a === b;
 		}
 	};
 
