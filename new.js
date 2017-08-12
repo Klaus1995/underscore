@@ -212,6 +212,143 @@
 		return _.find(list, _.matcher(properties));
 	};
 
+	//reject
+	//_.reject(list, predicate, [context]) 
+	//返回list中没有通过predicate真值检测的元素集合，与filter相反。
+	_.reject = function(list, predicate, context) {
+
+		predicate = createCallback(predicate, context);
+
+		return _.filter(list, _.negate(predicate));
+	};
+
+	//every方法
+	//_.every(list, [predicate], [context]) 
+	//如果list中的所有元素都通过predicate的真值检测就返回true。（愚人码头注：如果存在原生的every方法，就使用原生的every。）
+	_.every = function(list, predicate, context) {
+
+		let result = true;
+
+		predicate = createCallback(predicate, context);
+
+		if (_.isNumber(list.length)) {
+			list = Array.from(list);
+			result = list.every(predicate);
+		} else {
+			for (let [key, value] of Object.entries(list)) {
+				if (!predicate(value, key, list)) {
+					result = false;
+					break;
+				}
+			}
+		}
+
+		return result;
+	};
+
+	//some方法
+	//_.some(list, [predicate], [context]) 
+	//如果list中有任何一个元素通过 predicate 的真值检测就返回true。一旦找到了符合条件的元素, 就直接中断对list的遍历. （愚人码头注：如果存在原生的some方法，就使用原生的some。）
+	_.some = function(list, predicate, context) {
+
+		predicate = createCallback(predicate, context);
+
+		return !_.every(list, _.negate(predicate));
+	};
+
+	//contains方法
+	//_.contains(list, value, [fromIndex]) 
+	//如果list包含指定的value则返回true（愚人码头注：使用===检测）。如果list 是数组，内部使用indexOf判断。使用fromIndex来给定开始检索的索引位置。
+	_.contains = function(list, value, fromIndex = 0) {
+
+		let result = false;
+
+		if (_.isNumber(list.length)) {
+			list = Array.from(list);
+			result = list.indexOf(value, fromIndex) !== -1;
+		} else {
+			for (let item of Object.values(list)) {
+				if (Object.is(value, item)) {
+					result = true;
+					break;
+				}
+			}
+		}
+
+		return result;
+	};
+
+	//invoke方法
+	//_.invoke(list, methodName, *arguments) 
+	//在list的每个元素上执行methodName方法。 任何传递给invoke的额外参数，invoke都会在调用methodName方法的时候传递给它。
+	_.invoke = function(list, methodName, ...args) {
+
+		return _.map(list, function(value) {
+
+			if (!_.isFunction(methodName)) {
+				methodName = value[methodName];
+			}
+
+			return methodName.call(value, ...args);
+		});
+	};
+
+	//pluck方法
+	//_.pluck(list, propertyName)
+	//pluck也许是map最常使用的用例模型的简化版本，即萃取数组对象中某属性值，返回一个数组。
+	_.pluck = function(list, propertyName) {
+
+		return _.map(list, _.property(propertyName));
+	};
+
+	//max
+	//_.max(list, [iteratee], [context]) 
+	//返回list中的最大值。如果传递iteratee参数，iteratee将作为list中每个值的排序依据。如果list为空，将返回-Infinity，所以你可能需要事先用isEmpty检查 list 。
+	_.max = function(list, iteratee, context) {
+
+		let result = -Infinity;
+
+		iteratee = createCallback(iteratee, context);
+
+		_.reduce(list, function(max, item, index, array) {
+
+			let current = iteratee(item, index, array);
+
+			if (current >= max) {
+				result = item;
+				return current;
+			} else {
+				return max;
+			}
+		}, -Infinity);
+
+		return result;
+	};
+
+	//min方法
+	//_.min(list, [iteratee], [context]) 
+	//返回list中的最小值。如果传递iteratee参数，iteratee将作为list中每个值的排序依据。如果list为空，将返回-Infinity，所以你可能需要事先用isEmpty检查 list 。
+	_.min = function(list, iteratee, context) {
+
+		let result = Infinity;
+
+		iteratee = createCallback(iteratee, context);
+
+		_.reduce(list, function(min, item, index, array) {
+
+			let current = iteratee(item, index, array);
+
+			if (current <= min) {
+				result = item;
+				return current;
+			} else {
+				return min;
+			}
+		}, Infinity);
+
+		return result;
+	};
+
 
 	//数组函数（Array Functions）
 
@@ -295,15 +432,48 @@
 
 		let result = [];
 
-		flatten(array, shallow);
+		flatten(array, false);
 
 		return result;
 
-		function flatten(array, shallow) {
+		function flatten(array, boolean) {
 
 			array = Array.from(array);
 
+			array.forEach(function(item, index, array) {
 
+				if (_.isArray(item) && !boolean) {
+					flatten(item, shallow);
+					return;
+				}
+				result.push(item);
+			});
+		}
+	};
+
+	//without方法
+	//_.without(array, *values) 
+	//返回一个删除所有values值后的 array副本。（愚人码头注：使用===表达式做相等测试。）
+	_.without = function(array, ...values) {
+
+		return _.filter(array, function(item) {
+
+			return !_.contains(values, item);
+		});
+	};
+
+
+	//与函数有关的函数（Function Functions）
+
+
+	//negate方法
+	//_.negate(predicate) 
+	//返回一个新的predicate函数的否定版本。
+	_.negate = function(predicate) {
+
+		return function(...args) {
+
+			return !predicate(...args);
 		}
 	};
 
