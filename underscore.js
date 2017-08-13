@@ -869,7 +869,54 @@
 	//memoize方法
 	//_.memoize(function, [hashFunction])
 	//Memoizes方法可以缓存某函数的计算结果。对于耗时较长的计算是很有帮助的。如果传递了 hashFunction 参数，就用 hashFunction 的返回值作为key存储函数的计算结果。hashFunction 默认使用function的第一个参数作为key。memoized值的缓存可作为返回函数的cache属性。
-	_.memoize = function() {};
+	_.memoize = function(func, hashFunction) {
+
+		let memoize = function(...args) {
+
+			let key;
+
+			if (!_.isUndefined(hashFunction)) {
+				key = hashFunction.call(this, ...args);
+			} else {
+				key = args[0];
+			}
+
+			if (!_.has(memoize.cache, key)) {
+				memoize.cache[key] = func.call(this, ...args);
+			}
+
+			return memoize.cache[key];
+		};
+
+		memoize.cache = {};
+
+		return memoize;
+	};
+
+	//delay方法
+	//_.delay(function, wait, *arguments) 
+	//类似setTimeout，等待wait毫秒后调用function。如果传递可选的参数arguments，当函数function执行时， arguments 会作为参数传入。
+	_.delay = function(func, wait, ...args) {
+
+		return setTimeout(function() {
+
+			return func.call(null, ...args);
+		}, wait);
+	};
+
+	//defer方法
+	//_.defer(function, *arguments) 
+	//延迟调用function直到当前调用栈清空为止，类似使用延时为0的setTimeout方法。对于执行开销大的计算和无阻塞UI线程的HTML渲染时候非常有用。 如果传递arguments参数，当函数function执行时， arguments 会作为参数传入。
+	_.defer = _.partial(_.delay, _, 1);
+
+	//throttle方法
+	//_.throttle(function, wait, [options]) 
+	//创建并返回一个像节流阀一样的函数，当重复调用函数的时候，至少每隔 wait毫秒调用一次该函数。对于想控制一些触发频率较高的事件有帮助。
+	//默认情况下，throttle将在你调用的第一时间尽快执行这个function，并且，如果你在wait周期内调用任意次数的函数，都将尽快的被覆盖。如果你想禁用第一次首先执行的话，传递{leading: false}，还有如果你想禁用最后一次执行的话，传递{trailing: false}。
+	_.throttle = function(function, wait, options) {
+
+
+	};
 
 	//negate方法
 	//_.negate(predicate) 
