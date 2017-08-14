@@ -17,6 +17,8 @@
 		this._wrapped = obj;
 	};
 
+	let _previous = window._;
+
 	window._ = _;
 
 	//createCallback方法
@@ -913,9 +915,139 @@
 	//_.throttle(function, wait, [options]) 
 	//创建并返回一个像节流阀一样的函数，当重复调用函数的时候，至少每隔 wait毫秒调用一次该函数。对于想控制一些触发频率较高的事件有帮助。
 	//默认情况下，throttle将在你调用的第一时间尽快执行这个function，并且，如果你在wait周期内调用任意次数的函数，都将尽快的被覆盖。如果你想禁用第一次首先执行的话，传递{leading: false}，还有如果你想禁用最后一次执行的话，传递{trailing: false}。
-	_.throttle = function(function, wait, options) {
+	_.throttle = function(func, wait, options = {}) {
 
+		let previous = 0,
+			timeout,
+			result;
 
+		return function(...args) {
+
+			let now = _.now(),
+				_this = this;
+
+			if (!previous && options.leading === false) {
+				previous = now;
+			}
+
+			let remaining = wait - (now - previous);
+
+			if (remaining <= 0 || remaining > wait) {
+				if (timeout) {
+					clearTimeout(timeout);
+					timeout = null;
+				}
+
+				previous = now;
+
+				result = func.call(_this, ...args);
+			} else if (!timeout && options.trailing !== false) {
+				let later = function() {
+
+					if (options.leading === false) {
+						previous = 0;
+					} else {
+						previous = _.now();
+					}
+
+					timeout = null;
+
+					result = func.call(_this, ...args);
+				};
+
+				timeout = setTimeout(later, remaining);
+			}
+
+			return result;
+		}
+	};
+
+	//debounce方法
+	//_.debounce(function, wait, [immediate])
+	//返回 function 函数的防反跳版本, 将延迟函数的执行(真正的执行)在函数最后一次调用时刻的 wait 毫秒之后. 对于必须在一些输入（多是一些用户操作）停止到达之后执行的行为有帮助。 例如: 渲染一个Markdown格式的评论预览, 当窗口停止改变大小之后重新计算布局, 等等.
+	//传参 immediate 为 true， debounce会在 wait 时间间隔的开始调用这个函数 。（愚人码头注：并且在 waite 的时间之内，不会再次调用。）在类似不小心点了提交按钮两下而提交了两次的情况下很有用。
+	_.debounce = function(func, wait, immediate) {
+
+		let result, timeout, timestamp;
+
+		return function(...args) {
+
+			let later = function() {
+
+				let last = _.now() - timestamp;
+
+				if (last < wait && last >= 0) {
+					timeout = setTimeout(later, wait - last);
+				} else {
+					timeout = null;
+					if (!immediate) {
+						result = func.call(_this, ...args);
+					}
+				}
+			};
+
+			let _this = this,
+				callNow = immediate && !timeout;
+
+			timestamp = _.now();
+
+			if (!timeout) {
+				timeout = setTimeout(later, wait);
+			}
+
+			if (callNow) {
+				result = func.call(_this, ...args);
+			}
+
+			return result;
+		}
+	};
+
+	//once方法
+	//_.once(function) 
+	//创建一个只能调用一次的函数。重复调用改进的方法也没有效果，只会返回第一次执行时的结果。 作为初始化函数使用时非常有用, 不用再设一个boolean值来检查是否已经初始化完成.
+	_.once = _.partial(_.before, 2);
+
+	//after方法
+	//_.after(count, function) 
+	//创建一个函数, 只有在运行了 count 次之后才有效果. 在处理同组异步请求返回结果时, 如果你要确保同组里所有异步请求完成之后才 执行这个函数, 这将非常有用。
+	_.after = function(count, func) {
+
+		return function(...args) {
+
+			count--;
+
+			if (count === 0) {
+				return func.call(this, ...args);
+			}
+		};
+	};
+
+	//before方法
+	//_.before(count, function) 
+	//创建一个函数,调用不超过count 次。 当count已经达到时，最后一个函数调用的结果将被记住并返回。
+	_.before = function(count, func) {
+
+		let memo;
+
+		return function(...args) {
+
+			count--;
+
+			if (count > 0) {
+				memo = func.call(this, ...args);
+			}
+
+			return memo;
+		};
+	};
+
+	//wrap方法
+	//_.wrap(function, wrapper) 
+	//将第一个函数 function 封装到函数 wrapper 里面, 并把函数 function 作为第一个参数传给 wrapper. 这样可以让 wrapper 在 function 运行之前和之后 执行代码, 调整参数然后附有条件地执行.
+	_.wrap = function(func, wrapper) {
+
+		return _.partial(wrapper, func);
 	};
 
 	//negate方法
@@ -927,6 +1059,26 @@
 
 			return !predicate(...args);
 		}
+	};
+
+	//compose方法
+	//_.compose(*functions) 
+	//返回函数集 functions 组合后的复合函数, 也就是一个函数执行完之后把返回的结果再作为参数赋给下一个函数来执行. 以此类推. 在数学里, 把函数 f(), g(), 和 h() 组合起来可以得到复合函数 f(g(h()))。
+	_.compose = function(...funcs) {
+
+		return function(...args) {
+
+			let result, _this = this;
+
+			result = funcs.pop().call(this, ...args);
+
+			result = _.reduceRight(funcs, function(memo, item) {
+
+				return item.call(_this, memo);
+			}, result);
+
+			return result;
+		};
 	};
 
 
@@ -1425,9 +1577,60 @@
 	//注意： 这和原生的isNaN 函数不一样，如果变量是undefined，原生的isNaN 函数也会返回 true 。
 	_.isNaN = Number.isNaN;
 
+
+	//实用功能(Utility Functions)
+
+
+	//noConflict
+	//_.noConflict()
+	//放弃Underscore 的控制变量"_"。返回Underscore 对象的引用。
+	_.noConflict = function() {
+
+		window._ = _previous;
+
+		return _;
+	};
+
+	//identity
+	//_.identity(value) 
+	//返回与传入参数相等的值. 相当于数学里的: f(x) = x
+	//这个函数看似无用, 但是在Underscore里被用作默认的迭代器iterator.
 	_.identity = function(value) {
 
 		return value;
+	};
+
+	//constant
+	//_.constant(value) 
+	//创建一个函数，这个函数 返回相同的值 用来作为_.constant的参数。
+	_.constant = function(value) {
+
+		return function() {
+
+			return value;
+		};
+	};
+
+	//noop
+	//_.noop() 
+	//返回undefined，不论传递给它的是什么参数。 可以用作默认可选的回调参数。
+	_.noop = function() {};
+
+	//times
+	//_.times(n, iteratee, [context]) 
+	//调用给定的迭代函数n次,每一次调用iteratee传递index参数。生成一个返回值的数组。 
+	_.times = function(n, iteratee, context) {
+
+		let accum = new Array(Math.max(0, n));
+
+		iteratee = createCallback(iteratee, context);
+
+		accum = _.map(accum, function(item, index) {
+
+			return iteratee.call(null, index);
+		});
+
+		return accum;
 	};
 
 	//random方法
@@ -1437,9 +1640,24 @@
 
 		if (_.isUndefined(max)) {
 			max = min;
-			min = 0
+			min = 0;
 		}
 
 		return min + Math.floor(Math.random() * (max - min + 1));
 	}
+
+	//mixin
+	//_.mixin(object)
+	//允许用您自己的实用程序函数扩展Underscore。传递一个 {name: function}定义的哈希添加到Underscore对象，以及面向对象封装。
+	_.mixin = function(object) {
+
+		_.each(_.functions(object), function(item) {
+
+			_[item] = object[item];
+		});
+
+
+	};
+
+	_.now = Date.now;
 })()
