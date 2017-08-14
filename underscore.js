@@ -1659,5 +1659,32 @@
 
 	};
 
+	//now
+	//_.now() 
+	//一个优化的方式来获得一个当前时间的整数时间戳。可用于实现定时/动画功能。
 	_.now = Date.now;
+
+
+	//链式语法(Chaining)
+
+
+	//chain
+	//_.chain(obj) 
+	//返回一个封装的对象. 在封装的对象上调用方法会返回封装的对象本身, 直到 value 方法调用为止.
+	_.chain = function(object) {
+
+		let instance = _(object);
+
+		instance._chain = true;
+
+		return instance;
+	};
+
+	//value
+	//_(obj).value() 
+	//获取封装对象的最终值.
+	_.prototype.value = function() {
+
+		return this._wrapped;
+	};
 })()
