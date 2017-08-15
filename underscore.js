@@ -1649,14 +1649,61 @@
 	//mixin
 	//_.mixin(object)
 	//允许用您自己的实用程序函数扩展Underscore。传递一个 {name: function}定义的哈希添加到Underscore对象，以及面向对象封装。
+	let result = function(instance, obj) {
+
+		if (instance._chain) {
+			return _(obj).chain();
+		} else {
+			return obj;
+		}
+	};
+
 	_.mixin = function(object) {
 
 		_.each(_.functions(object), function(item) {
 
 			_[item] = object[item];
+
+			_.prototype[item] = function(...args) {
+
+				return result(this, object[item].call(_, this._wrapped, ...args));
+			}
 		});
+	};
 
+	//iteratee
+	//_.iteratee(value, [context]) 
+	//一个重要的内部函数用来生成可应用到集合中每个元素的回调， 返回想要的结果 - 无论是等式，任意回调，属性匹配，或属性访问。 
+	_.iteratee = function(value, context) {
 
+		return createCallback(value, context);
+	};
+
+	//uniqueId
+	//_.uniqueId([prefix]) 
+	//为需要的客户端模型或DOM元素生成一个全局唯一的id。如果prefix参数存在， id 将附加给它。
+	let idCount = 0;
+	_.uniqueId = function(prefix) {
+
+		return prefix ? prefix + (++idCount) : '' + (++idCount);
+	};
+
+	//result
+	//_.result(object, property, [defaultValue]) 
+	//如果指定的property 的值是一个函数，那么将在object上下文内调用它;否则，返回它。如果提供默认值，并且属性不存在，那么默认值将被返回。如果设置defaultValue是一个函数，它的结果将被返回。
+	_.result = function(object, property, defaultValue) {
+
+		let value = object[property];
+
+		if (_.isUndefined(value)) {
+			value = defaultValue;
+		}
+
+		if (_.isFunction(value)) {
+			value = value.call(object);
+		}
+
+		return value;
 	};
 
 	//now
@@ -1687,4 +1734,6 @@
 
 		return this._wrapped;
 	};
+
+	_.mixin(_);
 })()
