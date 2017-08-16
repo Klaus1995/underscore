@@ -1,7 +1,7 @@
 (function() {
 
 	//_是一个构造函数
-	let _ = function(obj) {
+	const _ = function(obj) {
 
 		//如果obj已经是_的实例对象，则返回obj
 		if (obj instanceof _) {
@@ -17,14 +17,14 @@
 		this._wrapped = obj;
 	};
 
-	let _previous = window._;
+	const _previous = window._;
 
 	window._ = _;
 
 	//createCallback方法
 	//内置方法
 	//根据传入参数的类型生成相对应的方法
-	let createCallback = function(value, context) {
+	const createCallback = function(value, context) {
 
 		//如果传入undefined，则返回_.identity
 		if (_.isUndefined(value)) {
@@ -49,6 +49,16 @@
 		return _.property(value);
 	}
 
+	//内置方法，判断是否是数组或者类数组对象
+	const isArrayLike = function(array) {
+
+		if (_.isNull(array)) {
+			return false;
+		}
+
+		return _.isObject(array) && _.isNumber(array.length);
+	};
+
 
 	//集合函数 (Collections Functions)
 
@@ -60,10 +70,12 @@
 
 		iteratee = createCallback(iteratee, context);
 
-		if (_.isNumber(list.length)) {
+		if (isArrayLike(list)) {
 			list = Array.from(list);
+
 			list.forEach(iteratee);
-		} else {
+		} else if (_.isObject(list)) {
+
 			for (let [key, value] of Object.entries(list)) {
 				iteratee(value, key, list);
 			}
@@ -81,10 +93,12 @@
 
 		iteratee = createCallback(iteratee, context);
 
-		if (_.isNumber(list.length)) {
+		if (isArrayLike(list)) {
 			list = Array.from(list);
+
 			result = list.map(iteratee);
-		} else {
+		} else if (_.isObject(list)) {
+
 			for (let [key, value] of Object.entries(list)) {
 				result.push(iteratee(value, key, list));
 			}
@@ -103,21 +117,25 @@
 
 		iteratee = createCallback(iteratee, context);
 
-		if (_.isNumber(list.length)) {
+		if (isArrayLike(list)) {
 			list = Array.from(list);
+
 			if (_.isUndefined(memo)) {
 				result = list.reduce(iteratee);
 			} else {
 				result = list.reduce(iteratee, memo);
 			}
-		} else {
+		} else if (_.isObject(list)) {
 			let entries = Object.entries(list);
+
 			if (_.isUndefined(memo)) {
 				memo = entries.shift()[1];
 			}
+
 			for (let [key, value] of entries) {
 				memo = iteratee(memo, value, key, list);
 			}
+
 			result = memo;
 		}
 
@@ -133,21 +151,25 @@
 
 		iteratee = createCallback(iteratee, context);
 
-		if (_.isNumber(list.length)) {
+		if (isArrayLike(list)) {
 			list = Array.from(list);
+
 			if (_.isUndefined(memo)) {
 				result = list.reduceRight(iteratee);
 			} else {
 				result = list.reduceRight(iteratee, memo);
 			}
-		} else {
+		} else if (_.isObject(list)) {
 			let entries = Object.entries(list).reverse();
+
 			if (_.isUndefined(memo)) {
 				memo = entries.shift()[1];
 			}
+
 			for (let [key, value] of entries) {
 				memo = iteratee(memo, value, key, list);
 			}
+
 			result = memo;
 		}
 
@@ -163,11 +185,14 @@
 
 		predicate = createCallback(predicate, context);
 
-		if (_.isNumber(list.length)) {
+		if (isArrayLike(list)) {
 			list = Array.from(list);
+
 			result = list.find(predicate);
-		} else {
+		} else if (_.isObject(list)) {
+
 			for (let [key, value] of Object.entries(list)) {
+
 				if (predicate(value, key, list)) {
 					result = value;
 					break;
@@ -233,11 +258,14 @@
 
 		predicate = createCallback(predicate, context);
 
-		if (_.isNumber(list.length)) {
+		if (isArrayLike(list)) {
 			list = Array.from(list);
+
 			result = list.every(predicate);
-		} else {
+		} else if (_.isObject(list)) {
+
 			for (let [key, value] of Object.entries(list)) {
+
 				if (!predicate(value, key, list)) {
 					result = false;
 					break;
@@ -253,9 +281,26 @@
 	//如果list中有任何一个元素通过 predicate 的真值检测就返回true。一旦找到了符合条件的元素, 就直接中断对list的遍历. （愚人码头注：如果存在原生的some方法，就使用原生的some。）
 	_.some = function(list, predicate, context) {
 
+		let result = false;
+
 		predicate = createCallback(predicate, context);
 
-		return !_.every(list, _.negate(predicate));
+		if (isArrayLike(list)) {
+			list = Array.from(list);
+
+			result = list.some(predicate);
+		} else if (_.isObject(list)) {
+
+			for (let [key, value] of Object.entries(list)) {
+
+				if (predicate(value, key, list)) {
+					result = true;
+					break;
+				}
+			}
+		}
+
+		return result;
 	};
 
 	//contains方法
@@ -265,12 +310,15 @@
 
 		let result = false;
 
-		if (_.isNumber(list.length)) {
+		if (isArrayLike(list)) {
 			list = Array.from(list);
+
 			result = list.indexOf(value, fromIndex) !== -1;
-		} else {
-			for (let item of Object.values(list)) {
-				if (Object.is(value, item)) {
+		} else if (_.isObject(list)) {
+
+			for (let objValue of Object.values(list)) {
+
+				if (objValue === value) {
 					result = true;
 					break;
 				}
@@ -285,13 +333,13 @@
 	//在list的每个元素上执行methodName方法。 任何传递给invoke的额外参数，invoke都会在调用methodName方法的时候传递给它。
 	_.invoke = function(list, methodName, ...args) {
 
-		return _.map(list, function(value) {
+		return _.map(list, function(item) {
 
 			if (!_.isFunction(methodName)) {
-				methodName = value[methodName];
+				methodName = item[methodName];
 			}
 
-			return methodName.call(value, ...args);
+			return methodName.call(item, ...args);
 		});
 	};
 
@@ -444,11 +492,7 @@
 
 		let result;
 
-		if (_.isNumber(list.length)) {
-			list = Array.from(list);
-		} else {
-			list = Object.values(list);
-		}
+		list = _.toArray(list);
 
 		for (let i = 0; i < list.length; i++) {
 			let random = _.random(i, list.length - 1);
@@ -463,15 +507,11 @@
 	//从 list中产生一个随机样本。传递一个数字表示从list中返回n个随机元素。否则将返回一个单一的随机项。
 	_.sample = function(list, n) {
 
-		if (_.isNumber(list.length)) {
-			list = Array.from(list);
-		} else {
-			list = Object.values(list);
-		}
+		list = _.toArray(list);
 
 		if (_.isUndefined(n)) {
 			return list[_.random(list.length - 1)];
-		} else {
+		} else if (_.isNumber(n)) {
 			return _.shuffle(list).slice(0, Math.max(0, n));
 		}
 	};
@@ -481,13 +521,7 @@
 	//把list(任何可以迭代的对象)转换成一个数组，在转换 arguments 对象时非常有用。
 	_.toArray = function(list) {
 
-		if (_.isNumber(list.length)) {
-			list = Array.from(list);
-		} else {
-			list = Object.values(list);
-		}
-
-		return list;
+		return _.map(list);
 	};
 
 	//size方法
@@ -495,13 +529,7 @@
 	//返回list的长度。
 	_.size = function(list) {
 
-		if (_.isNumber(list.length)) {
-			list = Array.from(list);
-		} else {
-			list = Object.keys(list);
-		}
-
-		return list.length;
+		return _.toArray(list).length;
 	};
 
 	//partition方法
@@ -537,14 +565,20 @@
 	//返回array（数组）的第一个元素。传递 n参数将返回数组中从第一个元素开始的n个元素（愚人码头注：返回数组中前 n 个元素.）。
 	_.first = function(array, n) {
 
-		array = Array.from(array);
+		if (isArrayLike(array)) {
+			array = Array.from(array);
+		} else {
+			return array;
+		}
 
-		if (!_.isUndefined(n)) {
+		if (_.isNumber(n)) {
+
 			if (n > array.length) {
 				n = array.length;
 			} else if (n < 0) {
 				n = 0;
 			}
+
 			return array.slice(0, n);
 		}
 
@@ -556,12 +590,19 @@
 	//返回数组中除了最后一个元素外的其他全部元素。 在arguments对象上特别有用。传递 n参数将从结果中排除从最后一个开始的n个元素（愚人码头注：排除数组后面的 n 个元素）。
 	_.initial = function(array, n = 1) {
 
-		array = Array.from(array);
+		if (isArrayLike(array)) {
+			array = Array.from(array);
+		} else {
+			return array;
+		}
 
-		if (n > array.length) {
-			n = array.length;
-		} else if (n < 0) {
-			n = 0;
+		if (_.isNumber(n)) {
+
+			if (n > array.length) {
+				n = array.length;
+			} else if (n < 0) {
+				n = 0;
+			}
 		}
 
 		return array.slice(0, array.length - n);
@@ -572,14 +613,20 @@
 	//返回array（数组）的最后一个元素。传递 n参数将返回数组中从最后一个元素开始的n个元素（愚人码头注：返回数组里的后面的n个元素）。
 	_.last = function(array, n) {
 
-		array = Array.from(array);
+		if (isArrayLike(array)) {
+			array = Array.from(array);
+		} else {
+			return array;
+		}
 
-		if (!_.isUndefined(n)) {
+		if (_.isNumber(n)) {
+
 			if (n > array.length) {
 				n = array.length;
 			} else if (n < 0) {
 				n = 0;
 			}
+
 			return array.slice(array.length - n, array.length);
 		}
 
@@ -591,7 +638,11 @@
 	//返回数组中除了第一个元素外的其他全部元素。传递 index 参数将返回从index开始的剩余所有元素 。
 	_.rest = function(array, index = 1) {
 
-		array = Array.from(array);
+		if (isArrayLike(array)) {
+			array = Array.from(array);
+		} else {
+			return array;
+		}
 
 		return array.slice(index, array.length);
 	};
@@ -601,7 +652,7 @@
 	//返回一个除去所有false值的 array副本。 在javascript中, false, null, 0, "", undefined 和 NaN 都是false值.
 	_.compact = function(array) {
 
-		return _.filter(array, _.identity);
+		return _.filter(array);
 	};
 
 	//flatten方法
@@ -611,23 +662,28 @@
 
 		let result = [];
 
-		flatten(array, false);
-
-		return result;
-
 		function flatten(array, boolean) {
 
-			array = Array.from(array);
+			if (isArrayLike(array)) {
+				array = Array.from(array);
+			} else {
+				return array;
+			}
 
-			array.forEach(function(item, index, array) {
+			_.each(array, function(item, index, array) {
 
-				if (_.isArray(item) && !boolean) {
+				if (isArrayLike(item) && !boolean) {
 					flatten(item, shallow);
 					return;
 				}
+
 				result.push(item);
 			});
 		}
+
+		flatten(array, false);
+
+		return result;
 	};
 
 	//without方法
@@ -656,21 +712,17 @@
 
 		let result = [];
 
-		array = arrays.shift();
+		firstArray = _.uniq(arrays.shift());
 
-		_.each(array, function(item) {
+		result = _.filter(firstArray, function(item) {
 
-			if (_.every(arrays, function(value) {
+			return _.every(arrays, function(array) {
 
-					if (_.contains(value, item)) {
-						return true;
-					}
-				})) {
-				result.push(item);
-			}
+				return _.contains(array, item);
+			});
 		});
 
-		return _.uniq(result);
+		return result;
 	};
 
 	//difference方法
@@ -741,7 +793,11 @@
 	//返回value在该 array 中的索引值，如果value不存在 array中就返回-1。使用原生的indexOf 函数，除非它失效。如果您正在使用一个大数组，你知道数组已经排序，传递true给isSorted将更快的用二进制搜索..,或者，传递一个数字作为第三个参数，为了在给定的索引的数组中寻找第一个匹配值。
 	_.indexOf = function(array, value, fromIndex = 0) {
 
-		array = Array.from(array);
+		if (isArrayLike(array)) {
+			array = Array.from(array);
+		} else {
+			return array;
+		}
 
 		return array.indexOf(value, fromIndex);
 	};
@@ -751,7 +807,11 @@
 	//返回value在该 array 中的从最后开始的索引值，如果value不存在 array中就返回-1。如果支持原生的lastIndexOf，将使用原生的lastIndexOf函数。传递fromIndex将从你给定的索性值开始搜索。
 	_.lastIndexOf = function(array, value, fromIndex = array.length - 1) {
 
-		array = Array.from(array);
+		if (isArrayLike(array)) {
+			array = Array.from(array);
+		} else {
+			return array;
+		}
 
 		return array.length - array.lastIndexOf(value, fromIndex);
 	};
@@ -761,14 +821,18 @@
 	//使用二分查找确定value在list中的位置序号，value按此序号插入能保持list原有的排序。如果提供iterator函数，iterator将作为list排序的依据，包括你传递的value 。iterator也可以是字符串的属性名用来排序(比如length)。
 	_.sortedIndex = function(array, value, iteratee, context) {
 
-		array = Array.from(array);
+		if (isArrayLike(array)) {
+			array = Array.from(array);
+		} else {
+			return array;
+		}
 
 		iteratee = createCallback(iteratee, context);
 
 		value = iteratee(value);
 
 		let low = 0,
-			high = array.length;
+			high = array.length - 1;
 
 		while (low < high) {
 			let mid = Math.floor((low + high) / 2);
@@ -795,7 +859,7 @@
 	//和_.findIndex类似，但反向迭代数组，当predicate通过真检查时，最接近末端的索引值将被返回。
 	_.findLastIndex = function(array, predicate, context) {
 
-		return _.lastIndexOf(array, _.find(array, predicate, context));
+		return _.lastIndexOf(array, _.find(array.reverse(), predicate, context));
 	};
 
 	//range方法
