@@ -72,7 +72,6 @@
 
 		if (isArrayLike(list)) {
 			list = Array.from(list);
-
 			list.forEach(iteratee);
 		} else if (_.isObject(list)) {
 
@@ -95,7 +94,6 @@
 
 		if (isArrayLike(list)) {
 			list = Array.from(list);
-
 			result = list.map(iteratee);
 		} else if (_.isObject(list)) {
 
@@ -260,7 +258,6 @@
 
 		if (isArrayLike(list)) {
 			list = Array.from(list);
-
 			result = list.every(predicate);
 		} else if (_.isObject(list)) {
 
@@ -287,7 +284,6 @@
 
 		if (isArrayLike(list)) {
 			list = Array.from(list);
-
 			result = list.some(predicate);
 		} else if (_.isObject(list)) {
 
@@ -312,7 +308,6 @@
 
 		if (isArrayLike(list)) {
 			list = Array.from(list);
-
 			result = list.indexOf(value, fromIndex) !== -1;
 		} else if (_.isObject(list)) {
 
@@ -836,6 +831,7 @@
 
 		while (low < high) {
 			let mid = Math.floor((low + high) / 2);
+
 			if (value <= iteratee(array[mid])) {
 				high = mid;
 			} else {
@@ -874,11 +870,13 @@
 		}
 
 		if (step > 0 && stop > start) {
+
 			do {
 				result.push(start);
 				start += step
 			} while (start < stop)
 		} else if (step < 0 && start > stop) {
+
 			do {
 				result.push(start);
 				start += step;
@@ -893,7 +891,7 @@
 
 
 	//bind方法
-	//_.bind(func, object, ...args) 
+	//_.bind(func, object, *arguments) 
 	//绑定函数 function 到对象 object 上, 也就是无论何时调用函数, 函数里的 this 都指向这个 object.任意可选参数 arguments 可以传递给函数 function , 可以填充函数所需要的参数,这也被称为 partial application。对于没有结合上下文的partial application绑定，请使用partial。 
 	_.bind = function(func, object, ...args) {
 
@@ -905,12 +903,10 @@
 	//把methodNames参数指定的一些方法绑定到object上，这些方法就会在对象的上下文环境中执行。绑定函数用作事件处理函数时非常便利，否则函数被调用时this一点用也没有。methodNames参数是必须的。
 	_.bindAll = function(object, ...methodNames) {
 
-		_.each(methodNames, function(item) {
+		return _.map(methodNames, function(item) {
 
-			object[item] = object[item].bind(object);
+			return object[item].bind(object);
 		});
-
-		return object;
 	};
 
 	//partial方法
@@ -921,6 +917,7 @@
 		return function(...newArgs) {
 
 			let actualArgs = _.map(args, function(item) {
+
 				if (item === _) {
 					return newArgs.shift();
 				} else {
@@ -941,7 +938,7 @@
 
 			let key;
 
-			if (!_.isUndefined(hashFunction)) {
+			if (_.isFunction(hashFunction)) {
 				key = hashFunction.call(this, ...args);
 			} else {
 				key = args[0];
@@ -964,9 +961,9 @@
 	//类似setTimeout，等待wait毫秒后调用function。如果传递可选的参数arguments，当函数function执行时， arguments 会作为参数传入。
 	_.delay = function(func, wait, ...args) {
 
-		return setTimeout(function() {
+		setTimeout(function() {
 
-			return func.call(null, ...args);
+			func.call(null, ...args);
 		}, wait);
 	};
 
@@ -997,6 +994,7 @@
 			let remaining = wait - (now - previous);
 
 			if (remaining <= 0 || remaining > wait) {
+
 				if (timeout) {
 					clearTimeout(timeout);
 					timeout = null;
@@ -1006,6 +1004,7 @@
 
 				result = func.call(_this, ...args);
 			} else if (!timeout && options.trailing !== false) {
+
 				let later = function() {
 
 					if (options.leading === false) {
@@ -1036,6 +1035,9 @@
 
 		return function(...args) {
 
+			let _this = this,
+				callNow = immediate && !timeout;
+
 			let later = function() {
 
 				let last = _.now() - timestamp;
@@ -1049,9 +1051,6 @@
 					}
 				}
 			};
-
-			let _this = this,
-				callNow = immediate && !timeout;
 
 			timestamp = _.now();
 
@@ -1132,9 +1131,10 @@
 
 		return function(...args) {
 
-			let result, _this = this;
+			let result,
+				_this = this;
 
-			result = funcs.pop().call(this, ...args);
+			result = funcs.pop().call(_this, ...args);
 
 			result = _.reduceRight(funcs, function(memo, item) {
 
@@ -1157,11 +1157,11 @@
 	//allKeys方法
 	//_.allKeys(object) 
 	//检索object拥有的和继承的所有属性的名称。
-	_.allKeys = function(obj) {
+	_.allKeys = function(object) {
 
 		let keys = [];
 
-		for (let key in obj) {
+		for (let key in object) {
 			keys.push(key);
 		}
 
@@ -1246,6 +1246,7 @@
 		predicate = createCallback(predicate, context);
 
 		for (let [key, value] of Object.entries(object)) {
+
 			if (predicate(value, key, object)) {
 				return key;
 			}
@@ -1257,7 +1258,8 @@
 	//复制source对象中的所有属性覆盖到destination对象上，并且返回 destination 对象。 复制是按顺序的, 所以后面的对象属性会把前面的对象属性覆盖掉(如果有重复)。
 	_.extend = function(destination, ...sources) {
 
-		sources.forEach(function(source) {
+		_.each(sources, function(source) {
+
 			for (let key in source) {
 				destination[key] = source[key];
 			}
@@ -1281,20 +1283,24 @@
 
 		if (_.isFunction(args[0])) {
 			iteratee = createCallback(...args);
+
 			for (let key in object) {
+
 				if (iteratee(object[key], key, object)) {
 					result[key] = object[key];
 				}
 			}
-		}
+		} else {
 
-		if (_.isArray(args[0])) {
-			args = [...args[0]];
-		}
+			if (_.isArray(args[0])) {
+				args = args[0];
+			}
 
-		for (let key of args) {
-			if (key in object) {
-				result[key] = object[key];
+			for (let key of args) {
+
+				if (key in object) {
+					result[key] = object[key];
+				}
 			}
 		}
 
@@ -1311,20 +1317,24 @@
 
 		if (_.isFunction(args[0])) {
 			iteratee = createCallback(...args);
+
 			for (let key in object) {
+
 				if (!iteratee(object[key], key, object)) {
 					result[key] = object[key];
 				}
 			}
-		}
+		} else {
 
-		if (_.isArray(args[0])) {
-			args = [...args[0]];
-		}
+			if (_.isArray(args[0])) {
+				args = args[0];
+			}
 
-		for (let key in object) {
-			if (args.indexOf(key) === -1) {
-				result[key] = object[key];
+			for (let key in object) {
+
+				if (!_.contains(args, key)) {
+					result[key] = object[key];
+				}
 			}
 		}
 
@@ -1336,9 +1346,10 @@
 	//用defaults对象填充object 中的undefined属性。 并且返回这个object。一旦这个属性被填充，再使用defaults方法将不会有任何效果。
 	_.defaults = function(object, ...defaults) {
 
-		defaults.forEach(function(item) {
+		_.each(defaults, function(item) {
 
 			for (let key in item) {
+
 				if (_.isUndefined(object[key])) {
 					object[key] = item[key];
 				}
@@ -1354,8 +1365,10 @@
 	_.clone = function(object) {
 
 		if (_.isArray(object)) {
+
 			return object.slice();
 		} else {
+
 			return _.extend({}, object);
 		}
 	};
@@ -1375,7 +1388,7 @@
 	//对象是否包含给定的键吗？等同于object.hasOwnProperty(key)，但是使用hasOwnProperty 函数的一个安全引用，以防意外覆盖。
 	_.has = function(object, key) {
 
-		return Object.prototype.hasOwnProperty.call(object, key);
+		return _.contains(Object.keys(object), key);
 	};
 
 	//property方法
@@ -1408,7 +1421,9 @@
 		return function(object) {
 
 			for (let [key, value] of Object.entries(attrs)) {
+
 				if (object[key] !== value || !(key in object)) {
+
 					return false;
 				}
 			}
@@ -1499,6 +1514,7 @@
 			//当判断的对象是狭义object或者array时遍历这个栈，判断栈内是否已经存在该对象的引用
 			//据此避免无限循环递归
 			for (let i = 0; i < aStack.length; i++) {
+
 				if (aStack[i] === a) {
 					return bStack[i] === b;
 				}
@@ -1510,6 +1526,7 @@
 
 			//然后进行递归展开判断
 			if (_.isArray(a)) {
+
 				//如果是数组，则先判断数组长度
 				//因为如果长度不等那两个数组一定不equal
 				if (a.length !== b.length) {
@@ -1518,6 +1535,7 @@
 
 				//长度相等则把数组展开递归判断每一个元素
 				for (let i = 0; i < a.length; i++) {
+
 					if (!eq(a[i], b[i], aStack, bStack)) {
 						return false;
 					}
@@ -1541,6 +1559,7 @@
 
 			//狭义object展开递归判断每一个键值对
 			for (let [key, value] of Object.entries(a)) {
+
 				if (!(_.has(b, key) && eq(value, b[key], aStack, bStack))) {
 					return false;
 				}
@@ -1561,6 +1580,7 @@
 	_.isMatch = function(object, properties) {
 
 		for (let [key, value] of Object.entries(properties)) {
+
 			if (object[key] !== value || !(key in object)) {
 				return false;
 			}
@@ -1578,15 +1598,11 @@
 			return true;
 		}
 
-		if (_.isArray(object) || _.isString(object)) {
+		if (isArrayLike(object) || _.isString(object)) {
 			return object.length === 0;
 		}
 
 		if (_.isObject(object)) {
-			if (_.isNumber(object.length)) {
-				return object.length === 0;
-			}
-
 			return Object.keys(object).length === 0;
 		}
 	};
@@ -1691,7 +1707,7 @@
 
 		accum = _.map(accum, function(item, index) {
 
-			return iteratee.call(null, index);
+			return iteratee(index);
 		});
 
 		return accum;
@@ -1703,8 +1719,7 @@
 	_.random = function(min, max) {
 
 		if (_.isUndefined(max)) {
-			max = min;
-			min = 0;
+			[min, max] = [0, min];
 		}
 
 		return min + Math.floor(Math.random() * (max - min + 1));
